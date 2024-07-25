@@ -1,10 +1,13 @@
-use std::{future::Future, pin::Pin};
+use std::{collections::HashMap, future::Future, pin::Pin};
 
 use http_body_util::{combinators::BoxBody, BodyExt, Full};
 use hyper::{body::Bytes, Request, Response as HyperResponse};
 
+pub type Params = HashMap<String, String>;
+
 pub struct Context {
     pub req: Request<hyper::body::Incoming>,
+    pub params: Params,
 }
 
 pub type Response = HyperResponse<BoxBody<Bytes, hyper::Error>>;
