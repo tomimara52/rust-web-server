@@ -3,19 +3,20 @@ use std::{collections::HashMap, future::Future, pin::Pin};
 use http_body_util::{BodyExt, Empty};
 use hyper::{body::Bytes, service::Service, Method, Request, Response as HyperResponse};
 
-use crate::handler::{Handler, Response, Context};
+use crate::{handler::{Context, Handler, Response}, router::Router};
 
 pub struct Server {
-    routes: HashMap<(Method, String), &'static dyn Handler>,
+    routers: HashMap<Method, Router>,
 }
 
 impl Server {
     pub fn new() -> Server {
-        Server{ routes: HashMap::new() }
+        Server{ routers: HashMap::new() }
     }
 
-    pub fn add_route(&mut self, method: Method, path: String, handler: &'static dyn Handler) {
-        self.routes.insert((method, path), handler);
+    pub fn add_route(&mut self, method: Method, path: &str, handler: &'static dyn Handler) {
+        let router = self.routers.entry(method).or_insert(Router::new());
+        router.add_route(path, handler);
     }
 }
 
@@ -26,8 +27,8 @@ impl Service<Request<hyper::body::Incoming>> for Server {
     type Future = Pin<Box<dyn Future<Output = Result<Response, hyper::Error>> + Send>>;
 
     fn call(&self, req: Request<hyper::body::Incoming>) -> Self::Future {
-        if let Some(h) = self.routes.get(&(req.method().clone(), req.uri().path().to_string())) {
-            h.invoke(Context{ req })
+        if let Some((h, p)) = self.routers.get(req.method()).unwrap().get_handler(req.uri().path()) {
+            h.invoke(Context{ req, params: p })
         } else {
             let mut not_found = HyperResponse::new(
                 Empty::<Bytes>::new()
