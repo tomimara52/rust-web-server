@@ -27,16 +27,18 @@ impl Service<Request<hyper::body::Incoming>> for Server {
     type Future = Pin<Box<dyn Future<Output = Result<Response, hyper::Error>> + Send>>;
 
     fn call(&self, req: Request<hyper::body::Incoming>) -> Self::Future {
-        if let Some((h, p)) = self.routers.get(req.method()).unwrap().get_handler(req.uri().path()) {
-            h.invoke(Context{ req, params: p })
-        } else {
-            let mut not_found = HyperResponse::new(
-                Empty::<Bytes>::new()
-                    .map_err(|never| match never {})
-                    .boxed()
-            );
-            *not_found.status_mut() = hyper::StatusCode::NOT_FOUND;
-            Box::pin(async {Ok(not_found)})
-        }
+        if let Some(router) = self.routers.get(req.method()) {
+            if let Some((h, params)) = router.get_handler(req.uri().path()) {
+                return h.invoke(Context{ req, params });
+            }
+        } 
+
+        let mut not_found = HyperResponse::new(
+            Empty::<Bytes>::new()
+                .map_err(|never| match never {})
+                .boxed()
+        );
+        *not_found.status_mut() = hyper::StatusCode::NOT_FOUND;
+        Box::pin(async {Ok(not_found)})
     }
 }
