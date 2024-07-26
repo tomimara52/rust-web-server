@@ -18,11 +18,11 @@ impl Router {
     }
 
     pub fn add_route(&mut self, path: &str, handler: &'static dyn Handler) {
-        assert!(path.len() > 0 && path.chars().nth(0).unwrap() == '/');
+        assert!(!path.is_empty() && path.chars().nth(0).unwrap() == '/');
 
         let mut regex = String::from("^");
 
-        for substr in path.split("/").skip(1) {
+        for substr in path.split('/').skip(1) {
             let len = substr.len();
 
             if len == 0 {
@@ -39,7 +39,7 @@ impl Router {
                 let group_name = substr[1..len-1].to_string();
                 regex += &(r"/(?<".to_string() + &group_name + r">\w+)");
             } else {
-                regex += &(r"/".to_string() + &substr);
+                regex += &(r"/".to_string() + substr);
             }
         }
 
@@ -60,7 +60,7 @@ impl Router {
     pub fn get_handler(&self, path: &str) -> Option<(&'static dyn Handler, Params)> {
         let matches: Vec<_> = self.routes.matches(path).into_iter().collect();
         
-        if matches.len() == 0 {
+        if matches.is_empty() {
             return None;
         }
 

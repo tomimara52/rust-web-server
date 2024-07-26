@@ -36,7 +36,7 @@ impl IntoResponse for String {
 
 impl IntoResponse for Bytes {
     fn into_response(self) -> Result<Response, hyper::Error> {
-        let body = Full::new(Bytes::from(self)).map_err(|e| match e {}).boxed();
+        let body = Full::new(self).map_err(|e| match e {}).boxed();
         let response = HyperResponse::builder()
             .status(200)
             .body(body)
