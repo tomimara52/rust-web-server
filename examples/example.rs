@@ -74,7 +74,7 @@ async fn reversed(context: Context) -> Result<Response, hyper::Error> {
  * it panics.
  */
 async fn echo_int(context: Context) -> String {
-    let int_param = context.params.get("a intParam").unwrap();
+    let int_param = context.params.get("intParam").unwrap();
     "With parameter: ".to_string() + int_param + "\n"
 }
 
