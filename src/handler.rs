@@ -55,11 +55,11 @@ impl<D: IntoResponse> IntoResponse for Result<D, hyper::Error> {
     }
 }
 
-pub trait Handler: Send + Sync + 'static {
+pub trait Handler: Send + Sync {
     fn invoke(&'static self, req: Context) -> Pin<Box<dyn Future<Output = Result<Response, hyper::Error>> + Send>>;
 }
 
-impl<F: Send + Sync + 'static, Fut> Handler for F 
+impl<F: Send + Sync, Fut> Handler for F 
 where 
     F: Fn(Context) -> Fut,
     Fut: Future + Send,
