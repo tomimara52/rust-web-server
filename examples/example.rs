@@ -1,4 +1,4 @@
-use rust_web_server::handler::{Context, Response};
+use rust_web_server::handler::{Context, Response, add_middleware};
 use rust_web_server::server::Server;
 use std::net::SocketAddr;
 
@@ -49,16 +49,7 @@ async fn uppercase(context: Context) -> Response {
 
 // echo the body but reversed
 async fn reversed(context: Context) -> Result<Response, hyper::Error> {
-    let req = context.req;
-
-    let upper = req.body().size_hint().upper().unwrap_or(u64::MAX);
-    if upper > 1024 * 64 { // 64Kb
-        let mut resp = Response::new(full("body to big >:["));
-        *resp.status_mut() = hyper::StatusCode::PAYLOAD_TOO_LARGE;
-        return Ok(resp);
-    }
-
-    let whole_body = req.collect().await?.to_bytes();
+    let whole_body = context.req.collect().await?.to_bytes();
 
     let reversed_body = whole_body.iter()
         .rev()
@@ -84,6 +75,34 @@ async fn echo_string(context: Context) -> String {
     "With parameter: ".to_string() + string_param + "\n"
 }
 
+// middleware to log the request, note that it has to be used as middleware because it asumes
+// that context.next is not None
+async fn request_logger(context: Context) -> Response {
+    println!("Request: {:?}", context.req);
+    let next = context.next.unwrap();
+    next.invoke(context).await.unwrap()
+}
+
+// middleware to log the response
+async fn response_logger(context: Context) -> Response {
+    let next = context.next.unwrap();
+    let response = next.invoke(context).await.unwrap();
+    println!("Response: {:?}", response);
+    response
+}
+
+// middleware to limit the size of the body of the request
+async fn payload_limit(context: Context) -> Response {
+    let upper = context.req.body().size_hint().upper().unwrap_or(u64::MAX);
+    if upper >  1024 * 64 { // 64Kb
+        let mut resp = Response::new(full("body to big >:["));
+        *resp.status_mut() = hyper::StatusCode::PAYLOAD_TOO_LARGE;
+        return resp;
+    }
+
+    context.next.unwrap().invoke(context).await.unwrap()
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
@@ -96,10 +115,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let io = TokioIo::new(stream);
 
         let mut server = Server::new();
-        server.add_route(Method::GET, "/hi", &hi);
+        server.add_route(Method::GET, "/hi", add_middleware(add_middleware(&hi, &request_logger), &response_logger));
         server.add_route(Method::POST, "/echo", &echo);
         server.add_route(Method::POST, "/uppercase", &uppercase);
-        server.add_route(Method::POST, "/reversed", &reversed);
+        server.add_route(Method::POST, "/reversed", add_middleware(&reversed, &payload_limit));
 
         // surround the parameter name with ':' to make it an integer parameter
         server.add_route(Method::GET, "/echo/:intParam:", &echo_int);
