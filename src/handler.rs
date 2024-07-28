@@ -8,6 +8,7 @@ pub type Params = HashMap<String, String>;
 pub struct Context {
     pub req: Request<hyper::body::Incoming>,
     pub params: Params,
+    pub next: Option<&'static dyn Handler>,
 }
 
 pub type Response = HyperResponse<BoxBody<Bytes, hyper::Error>>;
@@ -70,4 +71,14 @@ where
             (self)(context).await.into_response()
         })
     }
+}
+
+pub fn add_middleware(h: &'static dyn Handler, mid: &'static dyn Handler) -> &'static dyn Handler {
+    Box::leak(Box::new(
+        |c: Context| {
+            let mut c = c;
+            c.next = Some(h);
+            mid.invoke(c)
+        }
+    ))
 }
