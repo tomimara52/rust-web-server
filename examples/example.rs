@@ -77,30 +77,28 @@ async fn echo_string(context: Context) -> String {
 
 // middleware to log the request, note that it has to be used as middleware because it asumes
 // that context.next is not None
-async fn request_logger(context: Context) -> Response {
+async fn request_logger(context: Context) -> Result<Response, hyper::Error> {
     println!("Request: {:?}", context.req);
-    let next = context.next.unwrap();
-    next.invoke(context).await.unwrap()
+    Ok(context.next().await?)
 }
 
 // middleware to log the response
-async fn response_logger(context: Context) -> Response {
-    let next = context.next.unwrap();
-    let response = next.invoke(context).await.unwrap();
+async fn response_logger(context: Context) -> Result<Response, hyper::Error> {
+    let response = context.next().await?;
     println!("Response: {:?}", response);
-    response
+    Ok(response)
 }
 
 // middleware to limit the size of the body of the request
-async fn payload_limit(context: Context) -> Response {
+async fn payload_limit(context: Context) -> Result<Response, hyper::Error> {
     let upper = context.req.body().size_hint().upper().unwrap_or(u64::MAX);
     if upper >  1024 * 64 { // 64Kb
         let mut resp = Response::new(full("body to big >:["));
         *resp.status_mut() = hyper::StatusCode::PAYLOAD_TOO_LARGE;
-        return resp;
+        return Ok(resp);
     }
 
-    context.next.unwrap().invoke(context).await.unwrap()
+    Ok(context.next().await?)
 }
 
 #[tokio::main]
