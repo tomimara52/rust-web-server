@@ -11,6 +11,14 @@ pub struct Context {
     pub next: Option<&'static dyn Handler>,
 }
 
+impl Context {
+    pub fn next(mut self) -> Pin<Box<dyn Future<Output = Result<Response, hyper::Error>> + Send>> {
+        let next = self.next.unwrap();
+        self.next = None;
+        next.invoke(self)
+    }
+}
+
 pub type Response = HyperResponse<BoxBody<Bytes, hyper::Error>>;
 
 pub trait IntoResponse {
