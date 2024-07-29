@@ -56,7 +56,10 @@ impl<D: IntoResponse> IntoResponse for Result<D, hyper::Error> {
 }
 
 pub trait Handler: Send + Sync {
-    fn invoke(&'static self, context: Context) -> Pin<Box<dyn Future<Output = Result<Response, hyper::Error>> + Send>>;
+    fn invoke(
+        &'static self, 
+        context: Context
+    ) -> Pin<Box<dyn Future<Output = Result<Response, hyper::Error>> + Send>>;
 }
 
 impl<F: Send + Sync, Fut> Handler for F 
@@ -65,7 +68,10 @@ where
     Fut: Future + Send,
     Fut::Output: IntoResponse
 {
-    fn invoke(&'static self, context: Context) -> Pin<Box<dyn Future<Output = Result<Response, hyper::Error>> + Send>> {
+    fn invoke(
+        &'static self, 
+        context: Context
+    ) -> Pin<Box<dyn Future<Output = Result<Response, hyper::Error>> + Send>> {
         Box::pin(async move {
             (self)(context).await.into_response()
         })
@@ -73,7 +79,11 @@ where
 }
 
 pub trait Middleware: Send + Sync {
-    fn invoke(&'static self, context: Context, next: &'static dyn Handler) -> Pin<Box<dyn Future<Output = Result<Response, hyper::Error>> + Send>>;
+    fn invoke(
+        &'static self, 
+        context: Context, 
+        next: &'static dyn Handler
+    ) -> Pin<Box<dyn Future<Output = Result<Response, hyper::Error>> + Send>>;
 }
 
 impl<F: Send + Sync, Fut> Middleware for F 
@@ -82,7 +92,11 @@ where
     Fut: Future + Send,
     Fut::Output: IntoResponse
 {
-    fn invoke(&'static self, context: Context, next: &'static dyn Handler) -> Pin<Box<dyn Future<Output = Result<Response, hyper::Error>> + Send>> {
+    fn invoke(
+        &'static self, 
+        context: Context, 
+        next: &'static dyn Handler
+    ) -> Pin<Box<dyn Future<Output = Result<Response, hyper::Error>> + Send>> {
         Box::pin(async move {
             (self)(context, next).await.into_response()
         })
