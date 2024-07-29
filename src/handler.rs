@@ -56,7 +56,7 @@ impl<D: IntoResponse> IntoResponse for Result<D, hyper::Error> {
 }
 
 pub trait Handler: Send + Sync {
-    fn invoke(&'static self, req: Context) -> Pin<Box<dyn Future<Output = Result<Response, hyper::Error>> + Send>>;
+    fn invoke(&'static self, context: Context) -> Pin<Box<dyn Future<Output = Result<Response, hyper::Error>> + Send>>;
 }
 
 impl<F: Send + Sync, Fut> Handler for F 
@@ -73,7 +73,7 @@ where
 }
 
 pub trait Middleware: Send + Sync {
-    fn invoke(&'static self, req: Context, next: &'static dyn Handler) -> Pin<Box<dyn Future<Output = Result<Response, hyper::Error>> + Send>>;
+    fn invoke(&'static self, context: Context, next: &'static dyn Handler) -> Pin<Box<dyn Future<Output = Result<Response, hyper::Error>> + Send>>;
 }
 
 impl<F: Send + Sync, Fut> Middleware for F 
