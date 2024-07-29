@@ -8,15 +8,6 @@ pub type Params = HashMap<String, String>;
 pub struct Context {
     pub req: Request<hyper::body::Incoming>,
     pub params: Params,
-    pub next: Option<&'static dyn Handler>,
-}
-
-impl Context {
-    pub fn next(mut self) -> Pin<Box<dyn Future<Output = Result<Response, hyper::Error>> + Send>> {
-        let next = self.next.unwrap();
-        self.next = None;
-        next.invoke(self)
-    }
 }
 
 pub type Response = HyperResponse<BoxBody<Bytes, hyper::Error>>;
@@ -81,12 +72,27 @@ where
     }
 }
 
-pub fn add_middleware(h: &'static dyn Handler, mid: &'static dyn Handler) -> &'static dyn Handler {
+pub trait Middleware: Send + Sync {
+    fn invoke(&'static self, req: Context, next: &'static dyn Handler) -> Pin<Box<dyn Future<Output = Result<Response, hyper::Error>> + Send>>;
+}
+
+impl<F: Send + Sync, Fut> Middleware for F 
+where 
+    F: Fn(Context, &'static dyn Handler) -> Fut,
+    Fut: Future + Send,
+    Fut::Output: IntoResponse
+{
+    fn invoke(&'static self, context: Context, next: &'static dyn Handler) -> Pin<Box<dyn Future<Output = Result<Response, hyper::Error>> + Send>> {
+        Box::pin(async move {
+            (self)(context, next).await.into_response()
+        })
+    }
+}
+
+pub fn add_middleware(h: &'static dyn Handler, mid: &'static dyn Middleware) -> &'static dyn Handler {
     Box::leak(Box::new(
         |c: Context| {
-            let mut c = c;
-            c.next = Some(h);
-            mid.invoke(c)
+            mid.invoke(c, h)
         }
     ))
 }
