@@ -1,4 +1,4 @@
-use rust_web_server::handler::{Context, Response, add_middleware, Handler};
+use rust_web_server::handler::{Context, Response, add_middleware, HandlerRef};
 use rust_web_server::server::Server;
 use std::net::SocketAddr;
 
@@ -77,22 +77,22 @@ async fn echo_string(context: Context) -> String {
 
 // middleware to log the request, note that it has to be used as middleware because it asumes
 // that context.next is not None
-async fn request_logger(context: Context, next: &'static dyn Handler) -> Result<Response, hyper::Error> {
+async fn request_logger(context: Context, next: HandlerRef) -> Result<Response, hyper::Error> {
     println!("Request: {:?}", context.req);
     next.invoke(context).await
 }
 
 // middleware to log the response
-async fn response_logger(context: Context, next: &'static dyn Handler) -> Result<Response, hyper::Error> {
+async fn response_logger(context: Context, next: HandlerRef) -> Result<Response, hyper::Error> {
     let response = next.invoke(context).await?;
     println!("Response: {:?}", response);
     Ok(response)
 }
 
 // middleware to limit the size of the body of the request
-async fn payload_limit(context: Context, next: &'static dyn Handler) -> Result<Response, hyper::Error> {
+async fn payload_limit(context: Context, next: HandlerRef) -> Result<Response, hyper::Error> {
     let upper = context.req.body().size_hint().upper().unwrap_or(u64::MAX);
-    if upper > 3 { //  1024 * 64 { // 64Kb
+    if upper > 1024 * 64 { // 64Kb
         let mut resp = Response::new(full("body to big >:["));
         *resp.status_mut() = hyper::StatusCode::PAYLOAD_TOO_LARGE;
         return Ok(resp);

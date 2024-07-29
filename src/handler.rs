@@ -55,6 +55,8 @@ impl<D: IntoResponse> IntoResponse for Result<D, hyper::Error> {
     }
 }
 
+pub type HandlerRef = &'static dyn Handler;
+
 pub trait Handler: Send + Sync {
     fn invoke(
         &'static self, 
@@ -77,6 +79,8 @@ where
         })
     }
 }
+
+pub type MiddlewareRef = &'static dyn Middleware;
 
 pub trait Middleware: Send + Sync {
     fn invoke(
