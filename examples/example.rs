@@ -75,8 +75,7 @@ async fn echo_string(context: Context) -> String {
     "With parameter: ".to_string() + string_param + "\n"
 }
 
-// middleware to log the request, note that it has to be used as middleware because it asumes
-// that context.next is not None
+// middleware to log the request
 async fn request_logger(context: Context, next: HandlerRef) -> Result<Response, hyper::Error> {
     println!("Request: {:?}", context.req);
     next.invoke(context).await
