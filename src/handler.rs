@@ -1,6 +1,6 @@
 use std::{collections::HashMap, future::Future, pin::Pin};
 
-use http_body_util::{combinators::BoxBody, BodyExt, Full};
+use http_body_util::{combinators::BoxBody, BodyExt, Empty, Full};
 use hyper::{body::Bytes, Request, Response as HyperResponse};
 
 pub type Params = HashMap<String, String>;
@@ -43,6 +43,20 @@ impl IntoResponse for Bytes {
             .unwrap();
 
         Ok(response)
+    }
+}
+
+impl<D: IntoResponse> IntoResponse for Option<D> {
+    fn into_response(self) -> Result<Response, hyper::Error> {
+        match self {
+            Some(res) => res.into_response(),
+            None => Ok(
+                HyperResponse::builder()
+                    .status(hyper::StatusCode::INTERNAL_SERVER_ERROR)
+                    .body(Empty::new().map_err(|e| match e {}).boxed())
+                    .unwrap()
+            )
+        }
     }
 }
 
