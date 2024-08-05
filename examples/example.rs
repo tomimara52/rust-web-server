@@ -51,10 +51,10 @@ async fn uppercase(context: Context) -> Response {
 }
 
 // echo the body but reversed
-async fn reversed(context: Context) -> Result<Response, hyper::Error> {
-    let whole_body = context.req.unwrap().collect().await?.to_bytes();
+async fn reversed(mut context: Context) -> Result<Response, hyper::Error> {
+    context.collect_body().await?;
 
-    let reversed_body = whole_body.iter()
+    let reversed_body = context.body.iter()
         .rev()
         .cloned()
         .collect::<Vec<u8>>();
