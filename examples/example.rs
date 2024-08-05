@@ -26,13 +26,16 @@ async fn hi(_: Context) -> String {
 
 // echo the body received
 async fn echo(context: Context) -> Result<Bytes, hyper::Error> {
-    Ok(context.req.into_body().collect().await?.to_bytes())
+    match context.req {
+        Some(req) => Ok(req.into_body().collect().await?.to_bytes()),
+        None => Ok(context.body)
+    }
 }
 
 // echo the body but in uppercase
 async fn uppercase(context: Context) -> Response {
 
-    let frame_stream = context.req.into_body().map_frame(|frame| {
+    let frame_stream = context.req.unwrap().into_body().map_frame(|frame| {
         let frame = if let Ok(data) = frame.into_data() {
             data.iter()
                 .map(|byte| byte.to_ascii_uppercase())
@@ -49,7 +52,7 @@ async fn uppercase(context: Context) -> Response {
 
 // echo the body but reversed
 async fn reversed(context: Context) -> Result<Response, hyper::Error> {
-    let whole_body = context.req.collect().await?.to_bytes();
+    let whole_body = context.req.unwrap().collect().await?.to_bytes();
 
     let reversed_body = whole_body.iter()
         .rev()
@@ -76,8 +79,10 @@ async fn echo_string(context: Context) -> String {
 }
 
 // middleware to log the request
-async fn request_logger(context: Context, next: HandlerRef) -> Result<Response, hyper::Error> {
+async fn request_logger(mut context: Context, next: HandlerRef) -> Result<Response, hyper::Error> {
     println!("Request: {:?}", context.req);
+    context.collect_body().await?;
+    println!("Request body: {:?}", context.body);
     next.invoke(context).await
 }
 
@@ -90,7 +95,7 @@ async fn response_logger(context: Context, next: HandlerRef) -> Result<Response,
 
 // middleware to limit the size of the body of the request
 async fn payload_limit(context: Context, next: HandlerRef) -> Result<Response, hyper::Error> {
-    let upper = context.req.body().size_hint().upper().unwrap_or(u64::MAX);
+    let upper = context.req.as_ref().unwrap().body().size_hint().upper().unwrap_or(u64::MAX);
     if upper > 1024 * 64 { // 64Kb
         let mut resp = Response::new(full("body to big >:["));
         *resp.status_mut() = hyper::StatusCode::PAYLOAD_TOO_LARGE;
@@ -113,7 +118,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
         let mut server = Server::new();
         server.add_route(Method::GET, "/hi", add_middleware(add_middleware(&hi, &request_logger), &response_logger));
-        server.add_route(Method::POST, "/echo", &echo);
+        server.add_route(Method::POST, "/echo", add_middleware(&echo, &request_logger));
         server.add_route(Method::POST, "/uppercase", &uppercase);
         server.add_route(Method::POST, "/reversed", add_middleware(&reversed, &payload_limit));
 

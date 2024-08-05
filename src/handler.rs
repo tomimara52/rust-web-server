@@ -1,13 +1,33 @@
 use std::{collections::HashMap, future::Future, pin::Pin};
 
 use http_body_util::{combinators::BoxBody, BodyExt, Empty, Full};
-use hyper::{body::Bytes, Request, Response as HyperResponse};
+use hyper::{body::{Bytes, Incoming}, Request, Response as HyperResponse};
 
 pub type Params = HashMap<String, String>;
 
 pub struct Context {
-    pub req: Request<hyper::body::Incoming>,
+    pub req: Option<Request<Incoming>>,
+    pub body: Bytes,
     pub params: Params,
+}
+
+impl Context {
+    pub fn new(req: Request<Incoming>, params: Params) -> Context {
+        Context {
+            req: Some(req),
+            body: Bytes::new(),
+            params
+        }
+    }
+
+    pub async fn collect_body(&mut self) -> Result<(), hyper::Error> {
+        if self.req.is_none() {
+            return Ok(());
+        }
+
+        self.body = self.req.take().unwrap().collect().await?.to_bytes();
+        Ok(())
+    }
 }
 
 pub type Response = HyperResponse<BoxBody<Bytes, hyper::Error>>;

@@ -29,7 +29,7 @@ impl Service<Request<hyper::body::Incoming>> for Server {
     fn call(&self, req: Request<hyper::body::Incoming>) -> Self::Future {
         if let Some(router) = self.routers.get(req.method()) {
             if let Some((h, params)) = router.get_handler(req.uri().path()) {
-                return h.invoke(Context{ req, params });
+                return h.invoke(Context::new(req, params));
             }
         } 
 
