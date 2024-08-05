@@ -21,11 +21,10 @@ impl Context {
     }
 
     pub async fn collect_body(&mut self) -> Result<(), hyper::Error> {
-        if self.req.is_none() {
-            return Ok(());
+        if self.req.is_some() {
+            self.body = self.req.take().unwrap().collect().await?.to_bytes();
         }
 
-        self.body = self.req.take().unwrap().collect().await?.to_bytes();
         Ok(())
     }
 }
