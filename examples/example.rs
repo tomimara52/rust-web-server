@@ -33,9 +33,9 @@ async fn echo(context: Context) -> Result<Bytes, hyper::Error> {
 }
 
 // echo the body but in uppercase
-async fn uppercase(context: Context) -> Response {
+async fn uppercase(context: Context) -> Option<Response> {
 
-    let frame_stream = context.req.unwrap().into_body().map_frame(|frame| {
+    let frame_stream = context.req?.into_body().map_frame(|frame| {
         let frame = if let Ok(data) = frame.into_data() {
             data.iter()
                 .map(|byte| byte.to_ascii_uppercase())
@@ -47,7 +47,7 @@ async fn uppercase(context: Context) -> Response {
         Frame::data(frame)
     });
 
-    Response::new(frame_stream.boxed())
+    Some(Response::new(frame_stream.boxed()))
 }
 
 // echo the body but reversed
